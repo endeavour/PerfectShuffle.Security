@@ -68,6 +68,7 @@ module Google =
   let jwtHandler = System.IdentityModel.Tokens.JwtSecurityTokenHandler()
   let grantType = "authorization_code" // Hard-coded value as defined in the OAuth 2.0 specification.
 
+  /// Exchanges an authorization code for an access token and (optionally) a refresh token
   let exchangeCodeForTokens clientId clientSecret redirectUri code =
 
     let data = 
@@ -120,6 +121,7 @@ module Google =
 
   type RefreshTokenResponse = {AccessToken:string; ExpiresIn:int; TokenType:string}
   
+  /// Obtains a new access token given a refresh token (assuming the access hasn't been revoked by the user)
   let exchangeRefreshTokenForAccessToken refreshToken clientId clientSecret=
     let data = 
       [
