@@ -21,11 +21,18 @@ module Google =
   /// <param name="redirectUri">
   /// The URI that you specify when you register your app at the Google Cloud Console.
   /// </param>
-  let createRequestUri state clientId redirectUri =
+  /// <param name="additionalScope">
+  /// Any additional scope required (openid, profile, email) included by default
+  /// </param>
+  let createRequestUri state clientId redirectUri additionalScope =
     let boolStr x = if x then "true" else "false"
+    let join seperator (strings:seq<string>) = System.String.Join(seperator, strings)
         
     let response_type = "code"
-    let scope = "openid profile email"    
+    let scope =
+      ["openid"; "profile"; "email"] @ additionalScope
+      |> join " "
+
     let prompt = "consent"
     let access_type = "offline"
     let include_granted_scopes = true
@@ -53,19 +60,18 @@ module Google =
   type TokenResponse =
     {
       /// A token that can be sent to a Google API.
-      AccessToken:string;
+      AccessToken:string
       /// A JWT that contains identity information about the user that is digitally signed by Google.
-      IdToken:System.IdentityModel.Tokens.JwtSecurityToken;
+      IdToken:string
       /// The remaining lifetime of the access token (seconds)
-      ExpiresIn:int;
+      ExpiresIn:int
       /// Identifies the type of token returned. At this time, this field always has the value Bearer.
-      TokenType:string;
+      TokenType:string
       ///  A refresh token provides your app continuous access to Google APIs while the user is not logged into your application.
       /// This field is only present if access_type=offline is included in the authentication request.
       RefreshToken:string option
     }
 
-  let jwtHandler = System.IdentityModel.Tokens.JwtSecurityTokenHandler()
   let grantType = "authorization_code" // Hard-coded value as defined in the OAuth 2.0 specification.
 
   /// Exchanges an authorization code for an access token and (optionally) a refresh token
@@ -104,16 +110,9 @@ module Google =
       json.TryGetProperty "refresh_token"
       |> Option.map (fun x -> x.AsString())
 
-    let decodeIdentityToken (encodedToken:string) =      
-      // In theory we should call SecurityTokenHandler.ValidateToken here with Google's public keys
-      // but since we retrieved the token via HTTPS from Google directly it's not really necessary.
-      // See https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
-      let token = jwtHandler.ReadToken(encodedToken) :?> System.IdentityModel.Tokens.JwtSecurityToken            
-      token
-
     return {
       AccessToken = accessToken.AsString()
-      IdToken = idToken.AsString() |> decodeIdentityToken
+      IdToken = idToken.AsString()
       ExpiresIn = expiresIn.AsInteger()
       TokenType = tokenType.AsString()
       RefreshToken = refreshToken }
