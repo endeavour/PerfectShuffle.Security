@@ -102,7 +102,7 @@ module JWT =
       |> JsonValue.Parse
 
     let headerJson, payloadJson = toJson header, toJson payload
-    let headerData = headerJson |> function JsonValue.Object x -> x | _ -> raise <| System.ArgumentException("Token payload not in valid format")
+    let headerData = headerJson |> function JsonValue.Object x -> x | _ -> raise <| System.ArgumentException("Token header not in valid format")
     let payloadData = payloadJson |> function JsonValue.Object x -> x | _ -> raise <| System.ArgumentException("Token payload not in valid format")
 
     with
