@@ -3,7 +3,6 @@
 module JWT =
 
   open System
-  open System.Collections.Generic
   open System.Security.Cryptography
   open System.Text
 
