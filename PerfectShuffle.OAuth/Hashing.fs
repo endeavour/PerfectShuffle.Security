@@ -1,4 +1,4 @@
-﻿namespace PerfectShuffle.OAuth
+﻿namespace PerfectShuffle.Authentication
 
 module Convert =  
   open System.Numerics

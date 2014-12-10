@@ -1,4 +1,4 @@
-﻿namespace PerfectShuffle.OAuth
+﻿namespace PerfectShuffle.Authentication
 
 module JWT =
 
@@ -91,6 +91,15 @@ module JWT =
     
     json
 
+  let encodeClaims (key:byte[]) (algorithm:JwtHashAlgorithm) (claims:seq<System.Security.Claims.Claim>) =
+    
+    let payload =
+        claims
+        |> Seq.map (fun claim -> claim.Type, JsonValue.String(claim.Value))
+        |> Seq.toArray
+
+    encode key algorithm (JsonValue.Record(payload))
+
   let private split char (str:string) = str.Split(char)
   let private toUtf8 (bytes:byte[]) = Encoding.UTF8.GetString(bytes)
     
@@ -114,11 +123,15 @@ module JWT =
       |> function JsonValue.Record x -> x | _ -> raise <| System.ArgumentException("Token header not in valid format")
       |> Map.ofSeq
 
-    let payloadData =
-      printfn "%A" payloadJson
-      payloadJson
-      |> function JsonValue.Record x -> x | _ -> raise <| System.ArgumentException("Token payload not in valid format")
-      |> Map.ofSeq
+    let payloadData =      
+      let payload =
+        payloadJson
+        |> function JsonValue.Record x -> x | _ -> raise <| System.ArgumentException("Token payload not in valid format")
+
+      if (payload |> Seq.distinctBy fst |> Seq.length) <> (payload |> Seq.length) then
+        raise <| System.Security.SecurityException("The Claim Names within a JWT Claims Set MUST be unique") // From the RFC: http://self-issued.info/docs/draft-ietf-oauth-json-web-token.html#expDef section 4
+
+      payload |> Map.ofSeq
 
     let verify (key:byte[]) =
       match headerData.TryFind("alg") with

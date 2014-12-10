@@ -56,7 +56,7 @@
   <ItemGroup>
     <Compile Include="Hashing.fs" />
     <Compile Include="JWT.fs" />
-    <Compile Include="Google.fs" />
+    <Compile Include="GoogleOAuth.fs" />
     <None Include="app.config" />
     <Content Include="packages.config" />
   </ItemGroup>
