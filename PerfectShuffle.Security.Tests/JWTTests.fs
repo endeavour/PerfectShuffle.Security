@@ -6,7 +6,7 @@ module JWTTests =
   open FsUnit
   open System.Security.Cryptography.X509Certificates
   open FSharp.Data
-  open PerfectShuffle.OAuth.JWT
+  open PerfectShuffle.Security.JWT
 
   [<TestFixture>]
   type Tests() =
@@ -17,9 +17,9 @@ module JWTTests =
       
       let key = System.Text.UTF8Encoding.UTF8.GetBytes("This is a sample key")
 
-      let jwtText = PerfectShuffle.OAuth.JWT.encode key RS256 payload
+      let jwtText = PerfectShuffle.Security.JWT.encode key RS256 payload
 
-      let jwt = PerfectShuffle.OAuth.JWT.Token(jwtText)
+      let jwt = PerfectShuffle.Security.JWT.Token(jwtText)
 
       jwt.Verify(key) |> should be True
 

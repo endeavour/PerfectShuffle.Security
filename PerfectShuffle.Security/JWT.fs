@@ -1,4 +1,4 @@
-﻿namespace PerfectShuffle.Authentication
+﻿namespace PerfectShuffle.Security
 
 module JWT =
 

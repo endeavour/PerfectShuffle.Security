@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30110.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PerfectShuffle.OAuth", "PerfectShuffle.OAuth\PerfectShuffle.OAuth.fsproj", "{9198D786-B7C9-46BC-8A4F-E66BBB6895D5}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PerfectShuffle.Security", "PerfectShuffle.Security\PerfectShuffle.Security.fsproj", "{9198D786-B7C9-46BC-8A4F-E66BBB6895D5}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PerfectShuffle.OAuth.Tests", "PerfectShuffle.OAuth.Tests\PerfectShuffle.OAuth.Tests.fsproj", "{0018F466-8E74-4744-9739-194D7C78E9C6}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PerfectShuffle.Security.Tests", "PerfectShuffle.Security.Tests\PerfectShuffle.Security.Tests.fsproj", "{0018F466-8E74-4744-9739-194D7C78E9C6}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{08535DE5-8CA5-4F7D-AF01-02C5CB07AA58}"
 	ProjectSection(SolutionItems) = preProject
