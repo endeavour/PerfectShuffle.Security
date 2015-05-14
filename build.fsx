@@ -2,14 +2,29 @@
 #r "packages/FAKE/tools/FakeLib.dll"
 open Fake
 open Fake.AssemblyInfoFile
+open Fake.FileSystemHelper
 
 RestorePackages()
 
-let version = "0.1"
+let buildVersion = "0.1"
 
 // Properties
 let buildDir = "./build/"
 let testDir  = "./test/"
+
+let packagingDir = "./build/packages/"
+let packagingRoot = "./build/packages/nuget/"
+let allPackageFiles =
+  [|
+    buildDir + "PerfectShuffle.Security.dll"
+    "license.txt"
+  |]
+  
+let projectName = "PerfectShuffle.Security"
+let authors = ["James Freiwirth"]
+let projectDescription = "Helper library security-related functionality. Includes a basic JWT implementation, OAuth authentication and password hashing functions"
+let projectSummary = "Security helper library"
+let nuspecFile = "PerfectShuffle.Security/PerfectShuffle.Security.nuspec"
 
 // Targets
 Target "Clean" (fun _ ->
@@ -22,8 +37,8 @@ Target "BuildApp" (fun _ ->
          Attribute.Description "Authentication and JWT tools"
          Attribute.Guid "34e4036c-e16c-4cc4-84d3-820207ec5837"
          Attribute.Product "PerfectShuffle.Security"
-         Attribute.Version version
-         Attribute.FileVersion version]
+         Attribute.Version buildVersion
+         Attribute.FileVersion buildVersion]
 
     !! "PerfectShuffle.Security/*.fsproj"
       |> MSBuildRelease buildDir "Build"
@@ -44,6 +59,34 @@ Target "Test" (fun _ ->
              OutputFile = testDir + "TestResults.xml" })
 )
 
+Target "CreatePackage" (fun _ ->
+    // Copy all the package files into a package folder
+    CopyFiles packagingDir allPackageFiles
+
+    ensureDirExists (System.IO.DirectoryInfo(packagingRoot))
+    NuGet (fun p -> 
+        {p with
+            Authors = authors
+            Project = projectName
+            Description = projectDescription                               
+            OutputPath = packagingRoot
+            Summary = projectSummary
+            WorkingDir = packagingDir
+            Version = buildVersion
+            //AccessKey = myAccesskey
+            Publish = false
+            Files =
+              [
+                "license.txt", None, None
+                "*.dll", Some("lib"), None
+              ]
+            Dependencies =
+              [
+                "FSharp.Data", "2.1.1"
+              ]}) 
+            nuspecFile
+)
+
 Target "Default" (fun _ ->
     ()
 )
@@ -53,6 +96,7 @@ Target "Default" (fun _ ->
   ==> "BuildApp"
   ==> "BuildTest"
   ==> "Test"
+  ==> "CreatePackage"
   ==> "Default"
 
 // start build

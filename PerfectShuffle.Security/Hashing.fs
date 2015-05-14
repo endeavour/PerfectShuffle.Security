@@ -48,8 +48,9 @@ module PasswordHashing =
   let hashPasswordWithSalt (password:string) (salt:string) =
      let saltBytes = System.Text.Encoding.UTF8.GetBytes(salt)
      let hashBytes = new System.Security.Cryptography.Rfc2898DeriveBytes(password, saltBytes)     
+     hashBytes.IterationCount <- 1000
      let hashBytes = hashBytes.GetBytes(256/8)
-     let hash = Convert.ToBase64String(hashBytes)
+     let hash = Convert.ToBase64String hashBytes
      hash
 
   type PasswordHash =
@@ -60,3 +61,13 @@ module PasswordHashing =
     let salt = createRandomSalt saltLength
     let hashedPassword = hashPasswordWithSalt password salt
     {PasswordHash = hashedPassword; PasswordSalt = salt}
+
+  /// Compares two byte arrays in length-constant time. This comparison
+  /// method is used so that password hashes cannot be extracted from
+  /// on-line systems using a timing attack and then attacked off-line.
+  let slowEquals (a:byte[]) (b:byte[]) =
+    let mutable diff = (uint32 a.Length ^^^ uint32 b.Length)
+    let length = min a.Length b.Length
+    for i = 0 to length - 1 do
+      diff <- diff ||| (uint32 a.[i] ^^^ uint32 b.[i])
+    diff = 0u
