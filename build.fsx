@@ -6,7 +6,7 @@ open Fake.FileSystemHelper
 
 RestorePackages()
 
-let buildVersion = "0.1"
+let buildVersion = "0.1.1"
 
 // Properties
 let buildDir = "./build/"
@@ -82,7 +82,7 @@ Target "CreatePackage" (fun _ ->
               ]
             Dependencies =
               [
-                "FSharp.Data", "2.1.1"
+                "FSharp.Data", "2.2.2"
               ]}) 
             nuspecFile
 )
