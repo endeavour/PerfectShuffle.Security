@@ -133,13 +133,12 @@ module JWT =
 
       payload |> Map.ofSeq
 
-    let verify (key:byte[]) =
+    let verify (algorithm:JwtHashAlgorithm) (key:byte[]) =
       match headerData.TryFind("alg") with
-      | Some(JsonValue.String alg) ->
+      | Some(JsonValue.String alg) when JwtHashAlgorithm.FromString(alg) = algorithm ->
         try
-          let algorithm = JwtHashAlgorithm.FromString(alg)
           let actualSignature =
-            [header; payload]
+            [|header; payload|]
             |> join "."
             |> toByteArray
             |> hash algorithm key
@@ -152,6 +151,6 @@ module JWT =
     with
       member __.Header = headerData
       member __.Payload = payloadData
-      member __.Verify(sharedKey) = verify sharedKey
+      member __.Verify(algorithm, sharedKey) = verify algorithm sharedKey
 
   let decode token = Token(token).Payload

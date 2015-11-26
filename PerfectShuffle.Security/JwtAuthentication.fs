@@ -27,11 +27,11 @@ module JwtAuthentication =
   let private unixEpoch = System.DateTime(1970,1,1)
 
   /// Returns a ClaimsPrincipal for the given token. Throws an exception if it doesn't validate (signature doesn't match, past expiry etc)
-  let validate (log:string -> unit) (signingKey:byte[]) (tokenString:string) =
+  let validate (log:string -> unit) (hashAlgorithm:JWT.JwtHashAlgorithm) (signingKey:byte[]) (tokenString:string) =
     log "Authorization header: bearer string found"
     let token = PerfectShuffle.Security.JWT.Token(tokenString)
 
-    if not <| token.Verify(signingKey) then
+    if not <| token.Verify(hashAlgorithm, signingKey) then
       raise <| System.IdentityModel.Tokens.SecurityTokenValidationException()   
                                                      
     log "Successfully decoded JWT token"
@@ -88,9 +88,9 @@ module JwtAuthentication =
 
   let private safemaybe = new SafeMaybeBuilder()
 
-  let tryValidate (log:string -> unit) (signingKey:byte[]) (jwtToken:string) = 
+  let tryValidate (log:string -> unit) (hashAlgorithm:JWT.JwtHashAlgorithm) (signingKey:byte[]) (jwtToken:string) = 
     safemaybe {
-      let! claims = safelyRun (fun() -> validate log signingKey jwtToken)
+      let! claims = safelyRun (fun() -> validate log hashAlgorithm signingKey jwtToken)
       return claims
     }         
   

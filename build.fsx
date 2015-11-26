@@ -6,7 +6,7 @@ open Fake.FileSystemHelper
 
 RestorePackages()
 
-let buildVersion = "0.1.4"
+let buildVersion = "0.1.5"
 
 // Properties
 let buildDir = "./build/"
@@ -19,7 +19,7 @@ let allPackageFiles =
     buildDir + "PerfectShuffle.Security.dll"
     "license.txt"
   |]
-  
+
 let projectName = "PerfectShuffle.Security"
 let authors = ["James Freiwirth"]
 let projectDescription = "Helper library security-related functionality. Includes a basic JWT implementation, OAuth authentication and password hashing functions"
@@ -64,11 +64,11 @@ Target "CreatePackage" (fun _ ->
     CopyFiles packagingDir allPackageFiles
 
     ensureDirExists (System.IO.DirectoryInfo(packagingRoot))
-    NuGet (fun p -> 
+    NuGet (fun p ->
         {p with
             Authors = authors
             Project = projectName
-            Description = projectDescription                               
+            Description = projectDescription
             OutputPath = packagingRoot
             Summary = projectSummary
             WorkingDir = packagingDir
@@ -82,8 +82,8 @@ Target "CreatePackage" (fun _ ->
               ]
             Dependencies =
               [
-                "FSharp.Data", "2.2.3"
-              ]}) 
+                "FSharp.Data", "2.2.5"
+              ]})
             nuspecFile
 )
 
