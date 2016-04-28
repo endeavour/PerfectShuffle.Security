@@ -1,4 +1,5 @@
 @echo off
 cls
-"NuGet.exe" "Install" "FAKE" "-OutputDirectory" "packages" "-ExcludeVersion"
+
+.paket\paket restore
 "packages\FAKE\tools\Fake.exe" build.fsx
