@@ -21,5 +21,16 @@ module JWTTests =
 
       let jwt = PerfectShuffle.Security.JWT.Token(jwtText)
 
-      jwt.Verify(key) |> should be True
+      jwt.Verify(RS256, key) |> should be True
 
+    [<Test>]
+    member __.``Trying to manipulate the algorithm fails``() =
+      let payload = JsonValue.Record [|"Foo", JsonValue.String "Hello World"|]
+      
+      let key = System.Text.UTF8Encoding.UTF8.GetBytes("This is a sample key")
+
+      let jwtText = PerfectShuffle.Security.JWT.encode key RS256 payload
+
+      let jwt = PerfectShuffle.Security.JWT.Token(jwtText)
+
+      jwt.Verify(HS256, key) |> should be False
