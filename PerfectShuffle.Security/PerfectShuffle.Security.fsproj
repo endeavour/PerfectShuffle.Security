@@ -9,10 +9,11 @@
     <OutputType>Library</OutputType>
     <RootNamespace>PerfectShuffle.OAuth</RootNamespace>
     <AssemblyName>PerfectShuffle.Security</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <Name>PerfectShuffle.Security</Name>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <TargetFSharpCoreVersion>4.3.0.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -67,10 +68,10 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Hashing.fs" />
     <Compile Include="JWT.fs" />
-    <Compile Include="JwtAuthentication.fs" />
     <Compile Include="GoogleOAuth.fs" />
     <None Include="app.config" />
     <Content Include="paket.references" />
+    <Content Include="paket.template" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -94,6 +95,13 @@
   </Target>
   -->
   <Import Project="..\.paket\paket.targets" />
+  <ItemGroup>
+    <Reference Include="BouncyCastle.Crypto">
+      <HintPath>..\packages\BouncyCastle\lib\BouncyCastle.Crypto.dll</HintPath>
+      <Private>True</Private>
+      <Paket>True</Paket>
+    </Reference>
+  </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.0' Or $(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6' Or $(TargetFrameworkVersion) == 'v4.6.1')">
       <ItemGroup>
@@ -108,6 +116,17 @@
       <ItemGroup>
         <Reference Include="FSharp.Data">
           <HintPath>..\packages\FSharp.Data\lib\portable-net40+sl5+wp8+win8\FSharp.Data.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6' Or $(TargetFrameworkVersion) == 'v4.6.1')">
+      <ItemGroup>
+        <Reference Include="System.IdentityModel.Tokens.Jwt">
+          <HintPath>..\packages\System.IdentityModel.Tokens.Jwt\lib\net45\System.IdentityModel.Tokens.Jwt.dll</HintPath>
           <Private>True</Private>
           <Paket>True</Paket>
         </Reference>

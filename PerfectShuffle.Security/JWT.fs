@@ -1,58 +1,33 @@
 ﻿namespace PerfectShuffle.Security
 
 module JWT =
-
+  
   open System
+  open System.IdentityModel.Tokens
+  open System.Security.Claims
   open System.Security.Cryptography
-  open System.Text
 
-  type JwtHashAlgorithm =
-  | RS256
-  | HS256
-  | HS384
-  | HS512
-    with
+  type SigningKey =
+  | HS256 of symmetricKey:byte[]
+  | RS256 of key:RSAParameters
 
-    static member FromString (algorithmName:string) =
-      match algorithmName with
-      | "RS256" -> RS256
-      | "HS256" -> HS256
-      | "HS384" -> HS384
-      | "HS512" -> HS512
-      | _ -> invalidArg "name" "Unsupported algorithm"
-
-    override this.ToString() =
-      match this with
-      | RS256 -> "RS256"
-      | HS256 -> "HS256"
-      | HS384 -> "HS384"
-      | HS512 -> "HS512"
+  let jwtHandler = System.IdentityModel.Tokens.JwtSecurityTokenHandler()
   
-  let hashAlgorithms =
-    [
-      (RS256, fun key -> new HMACSHA256(key) :> HMAC)
-      (HS256, fun key -> new HMACSHA256(key) :> HMAC)
-      (HS384, fun key -> new HMACSHA384(key) :> HMAC)
-      (HS512, fun key -> new HMACSHA512(key) :> HMAC)
-    ] |> Map.ofSeq
+  let createRandomSymmetricKey() =
+    let rng = new System.Security.Cryptography.RNGCryptoServiceProvider()
+    
+    let bytes : byte[] = Array.zeroCreate (256 / 8) // 256 bit key
+    rng.GetBytes(bytes)
+    bytes
 
-  open FSharp.Data
-
-  let private join seperator (strings:seq<string>) = String.Join(seperator, strings)
-  let private toByteArray (str:string) = Encoding.UTF8.GetBytes(str)  
-  
-  let private hash algorithm key (bytes:byte[]) =
-    let hasher = hashAlgorithms.[algorithm](key)
-    hasher.ComputeHash(bytes)
-
-  let private urlEncode bytes =
+  let base64UrlEncode bytes =
     Convert
       .ToBase64String(bytes)
       .Split('=').[0]
       .Replace('+', '-')
       .Replace('/', '_')
 
-  let private urlDecode (str:string) =
+  let base64UrlDecode (str:string) =
     let newStr = str.Replace('-', '+').Replace('_', '/')
     let newStr =
       match newStr.Length % 4 with
@@ -61,96 +36,100 @@ module JWT =
       | 2 -> newStr + "=="
       | 3 -> newStr + "="
       | _ -> failwith "Assertion failure"
-
     Convert.FromBase64String(newStr)
 
-  let encode (key:byte[]) (algorithm:JwtHashAlgorithm) (payload:JsonValue) =
-    let header =
-      [|
-        ("alg", JsonValue.String (string algorithm))
-        ("typ", JsonValue.String "JWT")        
-      |]
-      |> JsonValue.Record
+  let generateJwtToken (signingKey:SigningKey) (tokenIssuerName:string) (audience:string) (validity:System.IdentityModel.Protocols.WSTrust.Lifetime) (claims:seq<Claim>) =
+    use publicAndPrivate = new RSACryptoServiceProvider()
+
+    let signingCredentials =
+      match signingKey with
+      | HS256 symmetricKey ->
+        if symmetricKey.Length <> 256 / 8 then
+          invalidArg "symmetricKey" "Symmetric key must be exactly 256 bits"
+        SigningCredentials(InMemorySymmetricSecurityKey(symmetricKey), SecurityAlgorithms.HmacSha256Signature, SecurityAlgorithms.Sha256Digest)
+      | RS256 key ->
+        
+        publicAndPrivate.ImportParameters key
+        SigningCredentials(RsaSecurityKey(publicAndPrivate), SecurityAlgorithms.RsaSha256Signature, SecurityAlgorithms.Sha256Digest)
+
+    let now = System.DateTime.UtcNow
+
+    let tokenDescriptor =
+      SecurityTokenDescriptor(
+        Subject = ClaimsIdentity(claims),
+        TokenIssuerName = tokenIssuerName,
+        AppliesToAddress = audience,
+        Lifetime = validity,
+        SigningCredentials = signingCredentials
+        )
+
+    let token = jwtHandler.CreateToken(tokenDescriptor)
+
+    token :?> JwtSecurityToken
+
+  let exportPublicKey (rsaParams:RSAParameters) =
+    let r = System.Security.Cryptography.RSA.Create()
+    r.ImportParameters rsaParams
+    use ms = new System.IO.MemoryStream()
+    use sw = new System.IO.StreamWriter(ms)
+    let bcRsa = Org.BouncyCastle.Security.DotNetUtilities.GetRsaPublicKey(r)
+    Org.BouncyCastle.OpenSsl.PemWriter(sw).WriteObject(bcRsa)
+    sw.Flush()
+    ms.ToArray() |> System.Text.Encoding.UTF8.GetString
+
+  let exportPrivateKey (rsaParams:RSAParameters) =
+    let r = System.Security.Cryptography.RSA.Create()
+    r.ImportParameters rsaParams
+    use ms = new System.IO.MemoryStream()
+    use sw = new System.IO.StreamWriter(ms)
+    let bcRsa = Org.BouncyCastle.Security.DotNetUtilities.GetRsaKeyPair(r)
+    Org.BouncyCastle.OpenSsl.PemWriter(sw).WriteObject(bcRsa.Private)
+    sw.Flush()
+    ms.ToArray() |> System.Text.Encoding.UTF8.GetString
+
+  let rsaToXml (rsaParams:RSAParameters) =
+    let rsa = System.Security.Cryptography.RSA.Create()
+    rsa.ImportParameters rsaParams
+    rsa.ToXmlString(true)
+
+  let rsaFromXml (rsaXml:string) : RSAParameters =
+    let rsa = System.Security.Cryptography.RSA.Create()
+    rsa.FromXmlString(rsaXml)
+    rsa.ExportParameters true
+
+  let validateToken (key:SigningKey) (tokenIssuerName:string) (audience:string) (token:string) =
+    let decodedToken = jwtHandler.ReadToken(token) :?> JwtSecurityToken
     
-    let segments =
-      [header;payload]
-      |> List.map string
-      |> List.map toByteArray
-      |> List.map urlEncode      
+    let lifetimeValidityChecker = LifetimeValidator(fun notBefore expires token validationParameters ->
+      match Option.ofNullable notBefore, Option.ofNullable expires with
+      | None, None -> true
+      | Some(notBefore), None -> notBefore <= DateTime.UtcNow
+      | None, Some(expires) -> DateTime.UtcNow <= expires
+      | Some(notBefore), Some(expires) -> notBefore <= DateTime.UtcNow && DateTime.UtcNow <= expires      
+      )
 
-    let signature =
-      segments
-      |> join "."
-      |> toByteArray
-      |> hash algorithm key
-      |> urlEncode
-
-    let signedToken = segments @ [signature]
-
-    let json = signedToken |> join "."
+    let validationParams =
+      match key with
+      | HS256 symmetricKey ->
+        if decodedToken.SignatureAlgorithm <> System.IdentityModel.Tokens.JwtAlgorithms.HMAC_SHA256 then failwith "Key and token must have matching signature types"
+        TokenValidationParameters(
+          ValidAudience = audience,
+          IssuerSigningToken = System.ServiceModel.Security.Tokens.BinarySecretSecurityToken(symmetricKey),
+          ValidIssuer = tokenIssuerName,
+          ValidateLifetime = true,
+          LifetimeValidator = lifetimeValidityChecker)
+      | RS256 key ->
+        if decodedToken.SignatureAlgorithm <> System.IdentityModel.Tokens.JwtAlgorithms.RSA_SHA256 then failwith "Key and token must have matching signature types"
+        let r = System.Security.Cryptography.RSA.Create()
+        r.ImportParameters key
+        let key = System.IdentityModel.Tokens.RsaSecurityToken(r).SecurityKeys.[0]
+        TokenValidationParameters(
+          ValidAudience = audience,
+          IssuerSigningKey = key,
+          ValidIssuer = tokenIssuerName,
+          ValidateLifetime = true,
+          LifetimeValidator = lifetimeValidityChecker
+          ) 
     
-    json
-
-  let encodeClaims (key:byte[]) (algorithm:JwtHashAlgorithm) (claims:seq<System.Security.Claims.Claim>) =
-    
-    let payload =
-        claims
-        |> Seq.map (fun claim -> claim.Type, JsonValue.String(claim.Value))
-        |> Seq.toArray
-
-    encode key algorithm (JsonValue.Record(payload))
-
-  let private split char (str:string) = str.Split(char)
-  let private toUtf8 (bytes:byte[]) = Encoding.UTF8.GetString(bytes)
-    
-  type Token(token) =
-    let parts = token |> split [|'.'|]
-    
-    let header, payload, signature =
-      match parts with
-      | [|a;b;c|] -> a,b,c
-      | _ -> raise <| System.ArgumentException("Token does not have correct number of parts")
-    
-    let toJson urlEncodedString =
-      urlEncodedString
-      |> urlDecode
-      |> toUtf8
-      |> JsonValue.Parse
-
-    let headerJson, payloadJson = toJson header, toJson payload
-    let headerData =
-      headerJson
-      |> function JsonValue.Record x -> x | _ -> raise <| System.ArgumentException("Token header not in valid format")
-      |> Map.ofSeq
-
-    let payloadData =      
-      let payload =
-        payloadJson
-        |> function JsonValue.Record x -> x | _ -> raise <| System.ArgumentException("Token payload not in valid format")
-
-      if (payload |> Seq.distinctBy fst |> Seq.length) <> (payload |> Seq.length) then
-        raise <| System.Security.SecurityException("The Claim Names within a JWT Claims Set MUST be unique") // From the RFC: http://self-issued.info/docs/draft-ietf-oauth-json-web-token.html#expDef section 4
-
-      payload |> Map.ofSeq
-
-    let verify (algorithm:JwtHashAlgorithm) (key:byte[]) =
-      match headerData.TryFind("alg") with
-      | Some(JsonValue.String alg) when JwtHashAlgorithm.FromString(alg) = algorithm ->
-        try
-          let actualSignature =
-            [|header; payload|]
-            |> join "."
-            |> toByteArray
-            |> hash algorithm key
-            |> urlEncode
-          signature = actualSignature
-        with ex ->
-          false
-      | _ -> false
-      
-    with
-      member __.Header = headerData
-      member __.Payload = payloadData
-      member __.Verify(algorithm, sharedKey) = verify algorithm sharedKey
-
-  let decode token = Token(token).Payload
+    let claims, token = jwtHandler.ValidateToken(token, validationParams)
+    claims, token
