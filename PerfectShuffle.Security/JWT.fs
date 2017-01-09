@@ -3,7 +3,8 @@
 module JWT =
   
   open System
-  open System.IdentityModel.Tokens
+  open Microsoft.IdentityModel.Tokens
+  open System.IdentityModel.Tokens.Jwt
   open System.Security.Claims
   open System.Security.Cryptography
 
@@ -11,7 +12,7 @@ module JWT =
   | HS256 of symmetricKey:byte[]
   | RS256 of key:RSAParameters
 
-  let jwtHandler = System.IdentityModel.Tokens.JwtSecurityTokenHandler()
+  let jwtHandler = System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler()
   
   let createRandomSymmetricKey() =
     let rng = new System.Security.Cryptography.RNGCryptoServiceProvider()
@@ -46,22 +47,24 @@ module JWT =
       | HS256 symmetricKey ->
         if symmetricKey.Length <> 256 / 8 then
           invalidArg "symmetricKey" "Symmetric key must be exactly 256 bits"
-        SigningCredentials(InMemorySymmetricSecurityKey(symmetricKey), SecurityAlgorithms.HmacSha256Signature, SecurityAlgorithms.Sha256Digest)
+        SigningCredentials(SymmetricSecurityKey(symmetricKey), SecurityAlgorithms.HmacSha256Signature)
       | RS256 key ->
         
         publicAndPrivate.ImportParameters key
-        SigningCredentials(RsaSecurityKey(publicAndPrivate), SecurityAlgorithms.RsaSha256Signature, SecurityAlgorithms.Sha256Digest)
+        SigningCredentials(RsaSecurityKey(publicAndPrivate), SecurityAlgorithms.RsaSha256Signature)
 
     let now = System.DateTime.UtcNow
 
     let tokenDescriptor =
       SecurityTokenDescriptor(
         Subject = ClaimsIdentity(claims),
-        TokenIssuerName = tokenIssuerName,
-        AppliesToAddress = audience,
-        Lifetime = validity,
+        Issuer = tokenIssuerName,
+        Audience = audience,
+        NotBefore = validity.Created,
+        Expires = validity.Expires,
         SigningCredentials = signingCredentials
         )
+    
 
     let token = jwtHandler.CreateToken(tokenDescriptor)
 
@@ -107,25 +110,28 @@ module JWT =
       | None, Some(expires) -> DateTime.UtcNow <= expires
       | Some(notBefore), Some(expires) -> notBefore <= DateTime.UtcNow && DateTime.UtcNow <= expires      
       )
-
+    
     let validationParams =
       match key with
       | HS256 symmetricKey ->
-        if decodedToken.SignatureAlgorithm <> System.IdentityModel.Tokens.JwtAlgorithms.HMAC_SHA256 then failwith "Key and token must have matching signature types"
+        if decodedToken.SignatureAlgorithm <> "HS256" then failwith "Key and token must have matching signature types"
         TokenValidationParameters(
-          ValidAudience = audience,
-          IssuerSigningToken = System.ServiceModel.Security.Tokens.BinarySecretSecurityToken(symmetricKey),
+          ValidAudience = audience,            
+          IssuerSigningKey = SymmetricSecurityKey(symmetricKey),
+          ValidateIssuerSigningKey = true,
           ValidIssuer = tokenIssuerName,
           ValidateLifetime = true,
           LifetimeValidator = lifetimeValidityChecker)
+        
       | RS256 key ->
-        if decodedToken.SignatureAlgorithm <> System.IdentityModel.Tokens.JwtAlgorithms.RSA_SHA256 then failwith "Key and token must have matching signature types"
+        if decodedToken.SignatureAlgorithm <> "RS256" then failwith "Key and token must have matching signature types"
         let r = System.Security.Cryptography.RSA.Create()
         r.ImportParameters key
-        let key = System.IdentityModel.Tokens.RsaSecurityToken(r).SecurityKeys.[0]
+        let key = RsaSecurityKey(key)
         TokenValidationParameters(
           ValidAudience = audience,
           IssuerSigningKey = key,
+          ValidateIssuerSigningKey = true,
           ValidIssuer = tokenIssuerName,
           ValidateLifetime = true,
           LifetimeValidator = lifetimeValidityChecker

@@ -1,0 +1,5 @@
+﻿type project
+licenseUrl https://opensource.org/licenses/MIT
+authors James Freiwirth
+description
+  Various helpers for hashing and JWT authentication

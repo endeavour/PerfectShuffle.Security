@@ -37,7 +37,6 @@ module TokenGeneration =
 /// For security, every time a password is created or changed a new salt should be applied!
 /// See: https://crackstation.net/hashing-security.htm
 module PasswordHashing =
-  
   open System
   open System.Security.Cryptography
   let rng = new RNGCryptoServiceProvider()  
